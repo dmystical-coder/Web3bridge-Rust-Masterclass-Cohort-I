@@ -53,15 +53,24 @@ impl Students {
         }
     }
 
-    pub fn update_student(&mut self, name: String, new_grade: Option<StudentGrade>, new_status: Option<StudentStatus>) {
+    // pub fn update_student(&mut self, name: String, new_grade: Option<StudentGrade>, new_status: Option<StudentStatus>) {
+    //     for student in &mut self.student_list {
+    //         if student.name == name {
+    //             if let Some(grade) = new_grade {
+    //                 student.grade = grade;
+    //             }
+    //             if let Some(status) = new_status {
+    //                 student.status = status;
+    //             }
+    //         }
+    //     }
+    // }
+
+    pub fn update_student(&mut self, name: String, grade: StudentGrade, status: StudentStatus) {
         for student in &mut self.student_list {
-            if student.name == name {
-                if let Some(grade) = new_grade {
-                    student.grade = grade;
-                }
-                if let Some(status) = new_status {
-                    student.status = status;
-                }
+            if student.name  == name {
+                student.grade = grade;
+                student.status = status;
             }
         }
     }
