@@ -117,7 +117,7 @@ mod test {
         school.delete_student(String::from("Ekezie Uchenna"));
         assert_eq!(school.students[0].status, Status::Inactive);
      }
-
+#[test]
      fn test_view_student(){
         let mut school = School::new();
         let student1 = Student{
