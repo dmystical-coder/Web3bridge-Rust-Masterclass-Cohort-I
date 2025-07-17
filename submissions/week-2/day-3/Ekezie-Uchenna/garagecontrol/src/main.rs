@@ -215,7 +215,7 @@ mod tests {
         assert!(result.is_ok());
         let key = employee_info.generate_access_key(1);
         assert!(key.is_err());
-        assert_eq!(key.unwrap_err(), "Employee with ID 1 does not have access");
+        assert_eq!(key.unwrap_err(), "Employee does not have access");
     }
 
     #[test]
