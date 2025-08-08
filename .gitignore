@@ -110,3 +110,6 @@ typings/
 
 # Rust/Cargo
 Cargo.lock
+
+# Additional entries
+.specstory
