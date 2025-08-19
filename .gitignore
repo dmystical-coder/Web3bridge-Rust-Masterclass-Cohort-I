@@ -113,4 +113,7 @@ Cargo.lock
 
 # Additional entries
 .specstory
+
+# Test snapshots
 **/test_snapshots/
+test_snapshots/
