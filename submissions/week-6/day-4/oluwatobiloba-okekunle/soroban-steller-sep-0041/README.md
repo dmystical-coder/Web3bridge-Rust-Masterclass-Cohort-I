@@ -77,6 +77,13 @@ This project consists of two integrated smart contracts:
 └── README.md
 ```
 
+## Add Another Contract
+
+```bash
+stellar contract init soroban-steller-sep-0041 --name ems
+```
+This generates the ems contract in the `contracts/ems` directory, it would skip workspace generation as it already exists(same name).
+
 ## Getting Started
 
 ### Prerequisites
