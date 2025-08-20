@@ -106,7 +106,6 @@ impl EmployeeManagementContract {
 
         env.storage().persistent().set(&employee_key, &new_employee);
 
-        // Add to employee list
         let mut employee_list: Vec<Address> = env
             .storage()
             .persistent()
