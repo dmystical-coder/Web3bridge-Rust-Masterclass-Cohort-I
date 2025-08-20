@@ -1,7 +1,7 @@
 use crate::import::contract_a::Client as TokenClient;
 use soroban_sdk::{ contract, contractimpl, Address, Env, String, Vec };
 
-use crate::errors::EmployeeError;
+use crate::errors::;
 use crate::state::*;
 
 #[contract]
