@@ -1,1 +1,0 @@
-D:\linuc\uche\Web3bridge-Rust-Masterclass-Cohort-I\submissions\week-1\day-5\Ekezie-Uchenna\task-2\enumss\target\debug\enumss.exe: D:\linuc\uche\Web3bridge-Rust-Masterclass-Cohort-I\submissions\week-1\day-5\Ekezie-Uchenna\task-2\enumss\src\main.rs
