@@ -49,7 +49,7 @@ yarn asbuild
 
 Test locally (optional)
 ```shell
-yarn test:local 56
+yarn test:local
 ```
 
 Check WASM contract with stylus
@@ -65,11 +65,6 @@ cargo stylus deploy --wasm-file ./build/release.wasm --private-key=YOUR_PRIVATE_
 Deploy smart contract
 ```shell
 cargo stylus deploy --wasm-file ./build/release.wasm --private-key=YOUR_PRIVATE_KEY --no-verify
-```
-
-Test on-chain (modify the contract address at the beginning of the file)
-```shell
-yarn test:onchain 56
 ```
 
 ## A note on the local testing file
