@@ -16,4 +16,6 @@ pub struct AllowanceData {
 pub enum DataKey {
     Allowance(AllowanceKey),
     Balance(Address),
+    Admin(Address),
+    IsInitialized
 }

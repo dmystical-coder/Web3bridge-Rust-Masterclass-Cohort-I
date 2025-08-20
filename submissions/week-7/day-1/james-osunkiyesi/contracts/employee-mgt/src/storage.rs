@@ -1,6 +1,7 @@
 use soroban_sdk::{contracttype, Address, String, Timepoint};
 
 #[contracttype]
+#[derive(PartialEq)]
 pub enum EmployeeRank {
     INTERN = 1,
     JUNIOR = 2,
@@ -64,5 +65,6 @@ pub struct Employee {
 #[contracttype]
 pub enum DataKey {
     Admin,
+    PaymentToken,
     Employee(Address),
 }

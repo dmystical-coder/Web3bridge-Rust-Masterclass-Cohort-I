@@ -8,6 +8,24 @@ use crate::storage::*;
 #[contract]
 pub struct Contract;
 
+#[contractimpl]
+impl Contract {
+     pub fn init(env: Env, admin: Address) {
+        let is_initialized = env.storage().persistent().get(&DataKey::IsInitialized).unwrap_or(false);
+        if is_initialized {
+            panic_with_error!(&env ,TokenError::AlreadyInitialized);
+        }
+
+        admin.require_auth();
+         const INITIAL_BALANCE: i128 = 1_000_000_000;
+        env.storage().persistent().set::<DataKey, i128>(&DataKey::Balance(admin), &INITIAL_BALANCE);
+        env.storage().persistent().set(&DataKey::IsInitialized, &true);
+    }
+
+    pub fn check_is_initialized(env: Env) -> bool {
+        env.storage().persistent().get(&DataKey::IsInitialized).unwrap_or(false)
+    }
+}
 
 #[contractimpl]
 impl TokenInterface for Contract {
