@@ -1,5 +1,5 @@
 #![no_std]
-use soroban_sdk::{contract, contractimpl, log, vec, Address, Env, String, Timepoint, Vec};
+use soroban_sdk::{contract, contractimpl, vec, Address, Env, String, Timepoint, Vec};
 use storage::{DataKey, Employee, EmployeeDept, EmployeeRank, EmployeeStatus};
 
 pub mod token {
@@ -50,7 +50,6 @@ impl Contract {
 
         payment_token.transfer(&env.current_contract_address(), &to, &amount)
     }
-
     pub fn add_employee(env: Env, user: Address, name: String, rank: EmployeeRank, dept: EmployeeDept) {
         Self::auth_user(env.storage().persistent().get(&DataKey::Admin).unwrap());
 
@@ -64,6 +63,7 @@ impl Contract {
                 rank,
                 dept,
                 time_employed: Timepoint::from_unix(&env, env.ledger().timestamp()),
+                time_since_last_pay: Timepoint::from_unix(&env, env.ledger().timestamp()),
                 status: EmployeeStatus::ACTIVE,
             })
         }
@@ -122,6 +122,40 @@ impl Contract {
             }
         }
 
+    }
+
+    pub fn collect_pay(env: Env, user: Address) {
+        Self::auth_user(user.clone());
+
+        let employee_key = DataKey::Employee(user.clone());
+        let employee_opt: Option<Employee> = env.storage().persistent().get(&employee_key);
+
+        match employee_opt {
+            None => panic!("Employee data does not exists"),
+            Some(x) => {
+               if  x.status.check_is_active(env.ledger().timestamp()) {
+                   let time_since_last_pay = x.time_since_last_pay.to_unix();
+                   let current_time = env.ledger().timestamp();
+                   let diff_in_days = (current_time - time_since_last_pay) / 86_400;
+                   if diff_in_days >= 28 {
+                       env.storage().persistent().set(&employee_key, &Employee {
+                           time_since_last_pay: Timepoint::from_unix(&env,time_since_last_pay + 28),
+                           status: EmployeeStatus::ACTIVE,
+                           rank: x.rank.clone(),
+                           ..x
+                       });
+
+                       let (env, payment_token) = payment_token(env);
+                       let payment_token = TokenClient::new(&env, &payment_token);
+
+                       payment_token.transfer(&env.current_contract_address(), &user, &EmployeeRank::get_pay(x.rank))
+
+                   } else {
+                       panic!("Payday has not reached");
+                   }
+               }
+            }
+        }
     }
 
     // Placeholder function to test employee's access to the company

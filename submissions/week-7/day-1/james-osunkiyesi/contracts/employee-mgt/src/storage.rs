@@ -1,7 +1,7 @@
 use soroban_sdk::{contracttype, Address, String, Timepoint};
 
 #[contracttype]
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub enum EmployeeRank {
     INTERN = 1,
     JUNIOR = 2,
@@ -19,6 +19,16 @@ impl EmployeeRank {
             4 => Some(EmployeeRank::SENIOR),
             5 => Some(EmployeeRank::MANAGER),
             _ => None,
+        }
+    }
+
+    pub fn get_pay(r: Self) -> i128 {
+        match r {
+            EmployeeRank::INTERN => 1_500,
+            EmployeeRank::JUNIOR => 2_500,
+            EmployeeRank::INTERMEDIATE => 4_500,
+            EmployeeRank::SENIOR => 7_000,
+            EmployeeRank::MANAGER => 12_000,
         }
     }
 }
@@ -59,6 +69,7 @@ pub struct Employee {
     pub rank: EmployeeRank,
     pub dept: EmployeeDept,
     pub time_employed: Timepoint,
+    pub time_since_last_pay: Timepoint,
     pub status: EmployeeStatus
 }
 

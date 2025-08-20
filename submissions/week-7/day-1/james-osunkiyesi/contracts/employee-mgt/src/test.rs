@@ -3,7 +3,7 @@
 use super::*;
 use crate::storage::{EmployeeDept, EmployeeRank};
 use soroban_sdk::{testutils::Address as TestAddress, Address, Env, String};
-
+use soroban_sdk::testutils::Ledger;
 
 fn generate_token_contract(env: Env) -> (Env, Address) {
     let id = env.register(
@@ -526,9 +526,330 @@ fn test_employee_department_changes() {
         EmployeeDept::ADMINISTRATIVE,
         EmployeeDept::DESIGN, // Back to original
     ];
-
     for dept in departments {
         client.update_employee_dept(&employee, &dept);
         assert!(client.employee_action(&employee));
     }
+}
+
+#[test]
+fn test_collect_pay_success_after_28_days() {
+    let (env, client, admin, employee, token_id) = create_test_env();
+
+    env.mock_all_auths();
+
+    // Initialize admin and add employee
+    client.init(&admin, &token_id);
+    client.add_employee(
+        &employee,
+        &String::from_str(&env, "John Doe"),
+        &EmployeeRank::JUNIOR,
+        &EmployeeDept::DEVELOPMENT
+    );
+
+    // Get current timestamp and advance by 28 days
+    let current_time = env.ledger().timestamp();
+
+    env.ledger().with_mut(|ledger| {
+        ledger.timestamp = current_time + (28 * 86_400); // 28 days in seconds
+    });
+
+    // Employee should be able to collect pay after 28 days
+    client.collect_pay(&employee);
+
+    // If we reach here, payment was successful
+    assert!(true);
+}
+
+#[test]
+#[should_panic(expected = "Payday has not reached")]
+fn test_collect_pay_too_early() {
+    let (env, client, admin, employee, token_id) = create_test_env();
+
+    env.mock_all_auths();
+
+    // Initialize admin and add employee
+    client.init(&admin, &token_id);
+    client.add_employee(
+        &employee,
+        &String::from_str(&env, "John Doe"),
+        &EmployeeRank::JUNIOR,
+        &EmployeeDept::DEVELOPMENT
+    );
+
+    // Try to collect pay immediately (before 28 days) - should panic
+    client.collect_pay(&employee);
+}
+
+#[test]
+#[should_panic(expected = "Payday has not reached")]
+fn test_collect_pay_partial_period() {
+    let (env, client, admin, employee, token_id) = create_test_env();
+
+    env.mock_all_auths();
+
+    // Initialize admin and add employee
+    client.init(&admin, &token_id);
+    client.add_employee(
+        &employee,
+        &String::from_str(&env, "John Doe"),
+        &EmployeeRank::JUNIOR,
+        &EmployeeDept::DEVELOPMENT
+    );
+
+    // Advance time by only 27 days (1 day short of 28)
+    let current_time = env.ledger().timestamp();
+
+    env.ledger().with_mut(|ledger| {
+        ledger.timestamp = current_time + (27 * 86_400);
+    });
+
+    // Should panic because 28 days haven't passed yet
+    client.collect_pay(&employee);
+}
+#[test]
+fn test_collect_pay_multiple_times() {
+    let (env, client, admin, employee, token_id) = create_test_env();
+
+    env.mock_all_auths();
+
+    // Initialize admin and add employee
+    client.init(&admin, &token_id);
+    client.add_employee(
+        &employee,
+        &String::from_str(&env, "John Doe"),
+        &EmployeeRank::SENIOR,
+        &EmployeeDept::DEVELOPMENT
+    );
+
+    let initial_time = env.ledger().timestamp();
+
+    // First pay period (28 days)
+    env.ledger().with_mut(|ledger| {
+        ledger.timestamp = initial_time + (28 * 86_400);
+    });
+    client.collect_pay(&employee);
+
+    // Second pay period (another 28 days)
+    env.ledger().with_mut(|ledger| {
+        ledger.timestamp = initial_time + (56 * 86_400);
+    });
+    client.collect_pay(&employee);
+
+    // Third pay period (another 28 days)
+    env.ledger().with_mut(|ledger| {
+        ledger.timestamp = initial_time + (84 * 86_400);
+    });
+    client.collect_pay(&employee);
+
+    // All collections should succeed
+    assert!(true);
+}
+
+#[test]
+fn test_collect_multiple_pay_at_the_same_time() {
+    let (env, client, admin, employee, token_id) = create_test_env();
+
+    env.mock_all_auths();
+
+    // Initialize admin and add employee
+    client.init(&admin, &token_id);
+    client.add_employee(
+        &employee,
+        &String::from_str(&env, "John Doe"),
+        &EmployeeRank::SENIOR,
+        &EmployeeDept::DEVELOPMENT
+    );
+
+    let initial_time = env.ledger().timestamp();
+
+    // First pay period (28 days)
+    env.ledger().with_mut(|ledger| {
+        ledger.timestamp = initial_time + (28 * 86_400) * 3; // User should have 3 pending pays
+    });
+    client.collect_pay(&employee);
+    client.collect_pay(&employee);
+    client.collect_pay(&employee);
+
+    // All collections should succeed
+    assert!(true);
+}
+
+
+#[test]
+#[should_panic(expected = "Employee data does not exists")]
+fn test_collect_pay_nonexistent_employee() {
+    let (env, client, admin, employee, token_id) = create_test_env();
+
+    env.mock_all_auths();
+
+    // Initialize admin but don't add employee
+    client.init(&admin, &token_id);
+
+    // Try to collect pay for non-existent employee - should panic
+    client.collect_pay(&employee);
+}
+
+#[test]
+fn test_collect_pay_suspended_employee() {
+    let (env, client, admin, employee, token_id) = create_test_env();
+
+    env.mock_all_auths();
+
+    // Initialize admin and add employee
+    client.init(&admin, &token_id);
+    client.add_employee(
+        &employee,
+        &String::from_str(&env, "John Doe"),
+        &EmployeeRank::JUNIOR,
+        &EmployeeDept::DEVELOPMENT
+    );
+
+    // Suspend employee for 30 days (longer than pay period)
+    client.suspend_employee(&employee, &30);
+
+    // Advance time by 28 days (pay period)
+    let current_time = env.ledger().timestamp();
+
+    env.ledger().with_mut(|ledger| {
+        ledger.timestamp = current_time + (28 * 86_400);
+    });
+
+    // Suspended employee should not be able to collect pay
+    // The function checks if employee is active first, so it should just return without error
+    // Since the employee is suspended (30 days), they won't be active even after 28 days
+    client.collect_pay(&employee);
+}
+
+#[test]
+fn test_collect_pay_after_suspension_expires() {
+    let (env, client, admin, employee, token_id) = create_test_env();
+
+    env.mock_all_auths();
+
+    // Initialize admin and add employee
+    client.init(&admin, &token_id);
+    client.add_employee(
+        &employee,
+        &String::from_str(&env, "John Doe"),
+        &EmployeeRank::JUNIOR,
+        &EmployeeDept::DEVELOPMENT
+    );
+
+    // Suspend employee for 20 days (shorter than pay period)
+    client.suspend_employee(&employee, &20);
+
+    // Advance time by 30 days (past both suspension and pay period)
+    let current_time = env.ledger().timestamp();
+
+    env.ledger().with_mut(|ledger| {
+        ledger.timestamp = current_time + (30 * 86_400);
+    });
+
+    // Employee should be able to collect pay after suspension expires and 28+ days have passed
+    client.collect_pay(&employee);
+
+    assert!(true);
+}
+
+#[test]
+fn test_collect_pay_after_promotion() {
+    let (env, client, admin, employee, token_id) = create_test_env();
+
+    env.mock_all_auths();
+
+    // Initialize admin and add employee as JUNIOR
+    client.init(&admin, &token_id);
+    client.add_employee(
+        &employee,
+        &String::from_str(&env, "John Doe"),
+        &EmployeeRank::JUNIOR,
+        &EmployeeDept::DEVELOPMENT
+    );
+
+    // Promote employee to INTERMEDIATE
+    client.promote_employee(&employee);
+
+    // Advance time by 28 days
+    let current_time = env.ledger().timestamp();
+
+    env.ledger().with_mut(|ledger| {
+        ledger.timestamp = current_time + (28 * 86_400);
+    });
+
+    // Employee should be able to collect pay at new rank rate (INTERMEDIATE = 4500)
+    client.collect_pay(&employee);
+
+    assert!(true);
+}
+
+#[test]
+#[should_panic(expected = "Payday has not reached")]
+fn test_collect_pay_updates_last_pay_time() {
+    let (env, client, admin, employee, token_id) = create_test_env();
+
+    env.mock_all_auths();
+
+    // Initialize admin and add employee
+    client.init(&admin, &token_id);
+    client.add_employee(
+        &employee,
+        &String::from_str(&env, "John Doe"),
+        &EmployeeRank::JUNIOR,
+        &EmployeeDept::DEVELOPMENT
+    );
+
+    // Advance time by 28 days
+    let current_time = env.ledger().timestamp();
+
+    env.ledger().with_mut(|ledger| {
+        ledger.timestamp = current_time + (28 * 86_400);
+    });
+
+    // Collect pay first time
+    client.collect_pay(&employee);
+
+    // Try to collect pay again immediately - should fail because last pay time was updated
+    client.collect_pay(&employee);
+}
+
+#[test]
+fn test_collect_pay_long_period() {
+    let (env, client, admin, employee, token_id) = create_test_env();
+
+    env.mock_all_auths();
+
+    // Initialize admin and add employee
+    client.init(&admin, &token_id);
+    client.add_employee(
+        &employee,
+        &String::from_str(&env, "John Doe"),
+        &EmployeeRank::MANAGER,
+        &EmployeeDept::ADMINISTRATIVE
+    );
+
+    // Advance time by 60 days (more than double the pay period)
+    let current_time = env.ledger().timestamp();
+
+    env.ledger().with_mut(|ledger| {
+        ledger.timestamp = current_time + (60 * 86_400);
+    });
+
+    // Should still be able to collect pay (only collects for one period)
+    client.collect_pay(&employee);
+
+    assert!(true);
+}
+
+#[test]
+fn test_pay_rates_validation() {
+    // Test that the pay rates are defined correctly in EmployeeRank
+    use crate::storage::EmployeeRank;
+
+    // Verify pay rates are set for each rank
+    assert_eq!(EmployeeRank::get_pay(EmployeeRank::INTERN), 1_500);
+    assert_eq!(EmployeeRank::get_pay(EmployeeRank::JUNIOR), 2_500);
+    assert_eq!(EmployeeRank::get_pay(EmployeeRank::INTERMEDIATE), 4_500);
+    assert_eq!(EmployeeRank::get_pay(EmployeeRank::SENIOR), 7_000);
+    assert_eq!(EmployeeRank::get_pay(EmployeeRank::MANAGER), 12_000);
 }
