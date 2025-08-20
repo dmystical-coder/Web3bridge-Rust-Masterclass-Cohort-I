@@ -325,7 +325,7 @@ impl EmployeeManagementContract {
             .get(&DataKey::TokenContract)
             .ok_or(EmployeeError::TokenContractError)?;
 
-        let institution_info: InstitutionInfo = env
+        let _institution_info: InstitutionInfo = env
             .storage()
             .instance()
             .get(&DataKey::Institution)
@@ -346,6 +346,7 @@ impl EmployeeManagementContract {
         Ok(())
     }
 
+    // Get methods
     pub fn get_employee(env: Env, employee: Address) -> Result<Employee, EmployeeError> {
         Self::ensure_initialized(&env)?;
 
@@ -354,6 +355,93 @@ impl EmployeeManagementContract {
             .persistent()
             .get(&employee_key)
             .ok_or(EmployeeError::EmployeeNotFound)
+    }
+
+    pub fn get_all_employees(env: Env) -> Result<Vec<Employee>, EmployeeError> {
+        Self::ensure_initialized(&env)?;
+
+        let employee_list: Vec<Address> = env
+            .storage()
+            .persistent()
+            .get(&DataKey::EmployeeList)
+            .unwrap_or(Vec::new(&env));
+
+        let mut employees = Vec::new(&env);
+
+        for employee_addr in employee_list.iter() {
+            if let Some(employee) = env
+                .storage()
+                .persistent()
+                .get::<DataKey, Employee>(&DataKey::Employee(employee_addr))
+            {
+                employees.push_back(employee);
+            }
+        }
+
+        Ok(employees)
+    }
+
+    pub fn get_institution_info(env: Env) -> Result<InstitutionInfo, EmployeeError> {
+        Self::ensure_initialized(&env)?;
+
+        env.storage()
+            .instance()
+            .get(&DataKey::Institution)
+            .ok_or(EmployeeError::StorageError)
+    }
+
+    pub fn pay_all_salaries(env: Env, admin: Address) -> Result<(), EmployeeError> {
+        Self::ensure_initialized(&env)?;
+        Self::ensure_admin(&env, &admin)?;
+
+        let employee_list: Vec<Address> = env
+            .storage()
+            .persistent()
+            .get(&DataKey::EmployeeList)
+            .unwrap_or(Vec::new(&env));
+
+        let token_contract: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::TokenContract)
+            .ok_or(EmployeeError::TokenContractError)?;
+
+        let token_client = TokenClient::new(&env, &token_contract);
+        let mut total_salary_needed = 0i128;
+
+        // Calculate total salary needed for active employees
+        for employee_addr in employee_list.iter() {
+            if let Some(employee) = env
+                .storage()
+                .persistent()
+                .get::<DataKey, Employee>(&DataKey::Employee(employee_addr))
+            {
+                if employee.status == EmployeeStatus::Active {
+                    total_salary_needed = total_salary_needed + employee.salary;
+                }
+            }
+        }
+
+        // Pay each active employee
+        for employee_addr in employee_list.iter() {
+            let employee_key = DataKey::Employee(employee_addr.clone());
+            if let Some(mut employee) = env
+                .storage()
+                .persistent()
+                .get::<DataKey, Employee>(&employee_key)
+            {
+                if employee.status == EmployeeStatus::Active {
+                    // Transfer salary
+                    token_client.mint(&employee_addr, &employee.salary);
+
+                    // Update last payment date
+                    employee.last_salary_payment = env.ledger().sequence();
+                    env.storage().persistent().set(&employee_key, &employee);
+                }
+            }
+        }
+
+        Ok(())
     }
 
     // Helper functions
