@@ -13,6 +13,8 @@ fn generate_token_contract(env: Env) -> (Env, Address) {
     (env, id)
 }
 
+
+
 fn create_test_env() -> (Env, ContractClient<'static>, Address, Address, Address) {
     let env = Env::default();
     let contract_id = env.register(Contract, ());
