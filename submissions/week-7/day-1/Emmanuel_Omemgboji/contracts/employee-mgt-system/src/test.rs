@@ -3,11 +3,7 @@ use crate::errors::EmployeeError;
 use crate::mgt_system::{EmployeeManagementContract, EmployeeManagementContractClient};
 use crate::state::*;
 use crate::token_import::token_contract::Client as TokenContractClient;
-use soroban_sdk::{
-    symbol_short,
-    testutils::{Address as _, AuthorizedFunction, AuthorizedInvocation},
-    Address, Env, String,
-};
+use soroban_sdk::{testutils::Address as _, Address, Env, String};
 
 fn create_token_contract(env: &Env, admin: &Address) -> Address {
     let name = String::from_str(env, "ballor-token");
@@ -37,7 +33,7 @@ fn setup_test() -> (Env, Address, Address, Address, Address) {
 #[test]
 fn test_initialization() {
     let (env, admin, _, _, token_contract) = setup_test();
-    let contract_id = env.register_contract(None, EmployeeManagementContract);
+    let contract_id = env.register(EmployeeManagementContract, ());
 
     let mgt_client = EmployeeManagementContractClient::new(&env, &contract_id);
 
@@ -68,7 +64,7 @@ fn test_initialization() {
 #[test]
 fn test_initialization_already_initialized() {
     let (env, admin, _, _, token_contract) = setup_test();
-    let contract_id = env.register_contract(None, EmployeeManagementContract);
+    let contract_id = env.register(EmployeeManagementContract, ());
     let mgt_client = EmployeeManagementContractClient::new(&env, &contract_id);
 
     // First initialization should succeed
@@ -95,7 +91,7 @@ fn test_initialization_already_initialized() {
 #[test]
 fn test_add_employee() {
     let (env, admin, employee1, _, token_contract) = setup_test();
-    let contract_id = env.register_contract(None, EmployeeManagementContract);
+    let contract_id = env.register(EmployeeManagementContract, ());
     let mgt_client = EmployeeManagementContractClient::new(&env, &contract_id);
 
     let result = mgt_client.initialize(
