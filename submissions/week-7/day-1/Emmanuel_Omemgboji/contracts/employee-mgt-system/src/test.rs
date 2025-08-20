@@ -63,3 +63,30 @@ fn test_initialization() {
     assert_eq!(token_client.symbol(), String::from_str(&env, "BLT"));
     assert_eq!(token_client.decimals(), 18u32);
 }
+
+#[test]
+fn test_initialization_already_initialized() {
+    let (env, admin, _, _, token_contract) = setup_test();
+    let contract_id = env.register_contract(None, EmployeeManagementContract);
+    let mgt_client = EmployeeManagementContractClient::new(&env, &contract_id);
+
+    // First initialization should succeed
+    mgt_client.initialize(
+        &admin,
+        &String::from_str(&env, "Test Institution"),
+        &token_contract,
+    );
+
+    // Second initialization should panic
+    let result = mgt_client.try_initialize(
+        &admin,
+        &String::from_str(&env, "Test Institution"),
+        &token_contract,
+    );
+
+    assert_eq!(
+        result.unwrap_err(),
+        Ok(EmployeeError::AlreadyInitialized),
+        "Error should be AlreadyInitialized"
+    );
+}
