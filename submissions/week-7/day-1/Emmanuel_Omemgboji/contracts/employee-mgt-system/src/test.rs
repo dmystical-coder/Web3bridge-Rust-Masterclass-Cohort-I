@@ -1,6 +1,7 @@
 #![cfg(test)]
 use crate::errors::EmployeeError;
 use crate::mgt_system::{EmployeeManagementContract, EmployeeManagementContractClient};
+use crate::state::*;
 use crate::token_import::token_contract::Client as TokenContractClient;
 use soroban_sdk::{
     symbol_short,
@@ -41,9 +42,9 @@ fn test_initialization() {
     let mgt_client = EmployeeManagementContractClient::new(&env, &contract_id);
 
     let result = mgt_client.initialize(
-        &admin.clone(),
+        &admin,
         &String::from_str(&env, "Test Institution"),
-        &token_contract.clone(),
+        &token_contract,
     );
 
     assert_eq!(result, ());
@@ -89,4 +90,41 @@ fn test_initialization_already_initialized() {
         Ok(EmployeeError::AlreadyInitialized),
         "Error should be AlreadyInitialized"
     );
+}
+
+#[test]
+fn test_add_employee() {
+    let (env, admin, employee1, _, token_contract) = setup_test();
+    let contract_id = env.register_contract(None, EmployeeManagementContract);
+    let mgt_client = EmployeeManagementContractClient::new(&env, &contract_id);
+
+    let result = mgt_client.initialize(
+        &admin.clone(),
+        &String::from_str(&env, "QA Institution"),
+        &token_contract.clone(),
+    );
+
+    assert_eq!(result, ());
+
+    // Add employee
+    let result = mgt_client.add_employee(
+        &admin,
+        &employee1,
+        &String::from_str(&env, "John Doe"),
+        &1000,
+        &EmployeeRank::Junior,
+    );
+
+    assert_eq!(result, ());
+
+    // Check employee was added
+    let employee = mgt_client.get_employee(&employee1);
+    assert_eq!(employee.name, String::from_str(&env, "John Doe"));
+    assert_eq!(employee.salary, 1000);
+    assert_eq!(employee.rank, EmployeeRank::Junior);
+    assert_eq!(employee.status, EmployeeStatus::Active);
+
+    // Check institution total employees updated
+    let institution_info = mgt_client.get_institution_info();
+    assert_eq!(institution_info.total_employees, 1);
 }
