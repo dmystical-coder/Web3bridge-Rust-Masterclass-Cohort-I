@@ -147,7 +147,7 @@ impl EmployeeManagementContract {
         let employee_key = DataKey::Employee(employee.clone());
         env.storage().persistent().remove(&employee_key);
 
-        let mut employee_list: Vec<Address> = env
+        let employee_list: Vec<Address> = env
             .storage()
             .persistent()
             .get(&DataKey::EmployeeList)
@@ -208,6 +208,152 @@ impl EmployeeManagementContract {
             .set(&employee_key, &employee_data);
 
         Ok(())
+    }
+
+    pub fn promote_employee(
+        env: Env,
+        admin: Address,
+        employee: Address,
+        new_rank: EmployeeRank,
+        new_salary: i128,
+    ) -> Result<(), EmployeeError> {
+        Self::ensure_initialized(&env)?;
+        Self::ensure_admin(&env, &admin)?;
+
+        if new_salary <= 0 {
+            return Err(EmployeeError::InvalidSalary);
+        }
+
+        let employee_key = DataKey::Employee(employee.clone());
+        let mut employee_data: Employee = env
+            .storage()
+            .persistent()
+            .get(&employee_key)
+            .ok_or(EmployeeError::EmployeeNotFound)?;
+
+        // Check if it's actually a promotion
+        if employee_data.rank.to_u32() == new_rank.to_u32() {
+            return Err(EmployeeError::SameRank);
+        }
+
+        // Update rank and salary
+        employee_data.rank = new_rank;
+        employee_data.salary = new_salary;
+
+        // Save updated employee
+        env.storage()
+            .persistent()
+            .set(&employee_key, &employee_data);
+
+        Ok(())
+    }
+
+    pub fn suspend_employee(
+        env: Env,
+        admin: Address,
+        employee: Address,
+    ) -> Result<(), EmployeeError> {
+        Self::ensure_initialized(&env)?;
+        Self::ensure_admin(&env, &admin)?;
+
+        let employee_key = DataKey::Employee(employee.clone());
+        let mut employee_data: Employee = env
+            .storage()
+            .persistent()
+            .get(&employee_key)
+            .ok_or(EmployeeError::EmployeeNotFound)?;
+
+        match employee_data.status {
+            EmployeeStatus::Suspended => return Err(EmployeeError::EmployeeAlreadySuspended),
+            EmployeeStatus::Active => {
+                employee_data.status = EmployeeStatus::Suspended;
+                env.storage()
+                    .persistent()
+                    .set(&employee_key, &employee_data);
+                Ok(())
+            }
+        }
+    }
+
+    pub fn reactivate_employee(
+        env: Env,
+        admin: Address,
+        employee: Address,
+    ) -> Result<(), EmployeeError> {
+        Self::ensure_initialized(&env)?;
+        Self::ensure_admin(&env, &admin)?;
+
+        let employee_key = DataKey::Employee(employee.clone());
+        let mut employee_data: Employee = env
+            .storage()
+            .persistent()
+            .get(&employee_key)
+            .ok_or(EmployeeError::EmployeeNotFound)?;
+
+        match employee_data.status {
+            EmployeeStatus::Active => return Err(EmployeeError::EmployeeAlreadyActive),
+            EmployeeStatus::Suspended => {
+                employee_data.status = EmployeeStatus::Active;
+                env.storage()
+                    .persistent()
+                    .set(&employee_key, &employee_data);
+                Ok(())
+            }
+        }
+    }
+
+    pub fn pay_salary(env: Env, admin: Address, employee: Address) -> Result<(), EmployeeError> {
+        Self::ensure_initialized(&env)?;
+        Self::ensure_admin(&env, &admin)?;
+
+        let employee_key = DataKey::Employee(employee.clone());
+        let mut employee_data: Employee = env
+            .storage()
+            .persistent()
+            .get(&employee_key)
+            .ok_or(EmployeeError::EmployeeNotFound)?;
+
+        // Check if employee is active
+        if employee_data.status == EmployeeStatus::Suspended {
+            return Err(EmployeeError::EmployeeSuspended);
+        }
+
+        // Get token contract and institution info
+        let token_contract: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::TokenContract)
+            .ok_or(EmployeeError::TokenContractError)?;
+
+        let institution_info: InstitutionInfo = env
+            .storage()
+            .instance()
+            .get(&DataKey::Institution)
+            .ok_or(EmployeeError::StorageError)?;
+
+        // Create token client
+        let token_client = TokenClient::new(&env, &token_contract);
+
+        // Transfer salary to employee
+        token_client.mint(&employee.clone(), &employee_data.salary);
+
+        // Update last salary payment
+        employee_data.last_salary_payment = env.ledger().sequence();
+        env.storage()
+            .persistent()
+            .set(&employee_key, &employee_data);
+
+        Ok(())
+    }
+
+    pub fn get_employee(env: Env, employee: Address) -> Result<Employee, EmployeeError> {
+        Self::ensure_initialized(&env)?;
+
+        let employee_key = DataKey::Employee(employee);
+        env.storage()
+            .persistent()
+            .get(&employee_key)
+            .ok_or(EmployeeError::EmployeeNotFound)
     }
 
     // Helper functions

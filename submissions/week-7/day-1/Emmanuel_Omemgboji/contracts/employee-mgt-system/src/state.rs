@@ -24,6 +24,17 @@ pub enum EmployeeRank {
 }
 
 impl EmployeeRank {
+    pub fn to_u32(&self) -> u32 {
+        match self {
+            EmployeeRank::Intern => 1,
+            EmployeeRank::Junior => 2,
+            EmployeeRank::Mid => 3,
+            EmployeeRank::Senior => 4,
+            EmployeeRank::Lead => 5,
+            EmployeeRank::Manager => 6,
+            EmployeeRank::Director => 7,
+        }
+    }
     pub fn from_u32(value: u32) -> Option<Self> {
         match value {
             1 => Some(EmployeeRank::Intern),
@@ -53,7 +64,7 @@ pub struct Employee {
     pub salary: i128,
     pub rank: EmployeeRank,
     pub status: EmployeeStatus,
-    pub last_salary_payment: u64,
+    pub last_salary_payment: u32,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
